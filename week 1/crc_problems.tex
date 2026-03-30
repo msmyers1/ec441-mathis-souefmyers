@@ -1,0 +1,194 @@
+\documentclass[12pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{mathptmx}
+\usepackage{amsmath, amssymb}
+\usepackage{enumitem}
+\usepackage{booktabs}
+
+\pagestyle{plain}
+
+\begin{document}
+
+\noindent Mathis Souef-Myers\\
+Professor Carruthers\\
+EC441 Networking\\
+CRC Problem Set
+
+\bigskip
+
+\section*{Key Concepts}
+
+CRC encoding protects data frames against bit errors using polynomial arithmetic over GF(2), where addition and subtraction are both XOR.
+
+Given a message $M(x)$ and a generator polynomial $G(x)$ of degree $r$:
+\begin{enumerate}
+  \item Shift the message left by $r$ bits: compute $x^r M(x)$.
+  \item Divide $x^r M(x)$ by $G(x)$ using modulo-2 long division to obtain remainder $R(x)$.
+  \item Transmit $T(x) = x^r M(x) \oplus R(x)$, which is divisible by $G(x)$.
+\end{enumerate}
+
+At the receiver, divide the received word by $G(x)$. If the remainder is non-zero, an error has been detected.
+
+\textbf{Polynomial $\leftrightarrow$ bit pattern:} Each power of $x$ maps to a bit position. For example, $x^3 + x + 1 \leftrightarrow 1011$ because $x^3$, $x^1$, and $x^0$ are present (and $x^2$ is absent).
+
+\bigskip
+\hrule
+\bigskip
+
+\subsection*{Problem 1 --- Basic CRC Encoding}
+\hrule\medskip
+A sensor node transmits the 5-bit message $M = 11010$ using the generator polynomial
+\[
+  G(x) = x^3 + x^2 + 1 \quad \longleftrightarrow \quad 1101
+\]
+\begin{enumerate}[label=(\alph*)]
+  \item Convert $G(x)$ to its bit pattern and state the degree $r$.
+  \item Write out the dividend $x^r M(x)$.
+  \item Perform modulo-2 long division of $x^r M(x)$ by $G(x)$ and find $R(x)$.
+  \item Write the transmitted frame $T$.
+  \item Verify that $T$ is divisible by $G(x)$.
+\end{enumerate}
+\bigskip
+
+\subsection*{Solution 1}
+\hrule\medskip
+\textbf{(a)} $G(x) = x^3 + x^2 + 1$:
+
+\begin{center}
+\begin{tabular}{cccc}
+\toprule
+$x^3$ & $x^2$ & $x^1$ & $x^0$ \\
+\midrule
+1 & 1 & 0 & 1 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Bit pattern: \textbf{1101}, degree $r = 3$.
+
+\medskip
+\textbf{(b)} Append $r = 3$ zeros: $x^3 M(x) = 11010\underbrace{000}_{r=3} = 11010000$.
+
+\medskip
+\textbf{(c)} Divide $11010000 \div 1101$:
+
+\begin{enumerate}
+  \item $1101 \oplus 1101 = 0000$.
+  \item Remaining bits are all 0; MSB stays 0 through each bring-down.
+\end{enumerate}
+
+Remainder: $R(x) = \mathbf{000}$.
+
+\medskip
+\textbf{(d)} $T = 11010000 \oplus 00000000 = \mathbf{11010000}$.
+
+\medskip
+\textbf{(e)} Dividing $11010000 \div 1101$: first XOR gives $0000$, all remaining bits are 0. Remainder $= 000$. $\checkmark$
+
+\textit{Note:} A zero remainder here means $M(x)$ happens to be divisible by $G(x)$---coincidental, not a weakness of CRC.
+\bigskip
+
+\bigskip
+
+\subsection*{Problem 2 --- CRC with Error Detection}
+\hrule\medskip
+A transmitter sends the message $M = 10011$ with generator
+\[
+  G(x) = x^3 + x + 1 \quad \longleftrightarrow \quad 1011
+\]
+\begin{enumerate}[label=(\alph*)]
+  \item Compute the CRC remainder $R(x)$ and write the transmitted frame $T$.
+  \item The receiver gets $T' = 10011\mathbf{1}10$ (bit 5 from the left, 0-indexed, has been flipped). Show that the error is detected.
+  \item Suppose the receiver gets the original $T$ uncorrupted. Verify no error is flagged.
+  \item What is the maximum burst error length guaranteed to be detected with this generator?
+\end{enumerate}
+\bigskip
+
+\subsection*{Solution 2}
+\hrule\medskip
+\textbf{(a)} $G(x) = 1011$, $r = 3$. Append 3 zeros: $x^3 M(x) = 10011\,000$.
+
+Divide $10011000 \div 1011$:
+
+\begin{enumerate}
+  \item $1001 \oplus 1011 = 0010$.
+  \item Bring down 1 $\to 0101$. MSB $= 0$.
+  \item Bring down 0 $\to 1010$. MSB $= 1 \Rightarrow 1010 \oplus 1011 = 0001$.
+  \item Bring down 0 $\to 0010$. MSB $= 0$.
+  \item Bring down 0 $\to 0100$. MSB $= 0$.
+\end{enumerate}
+
+Remainder $R(x) = \mathbf{100}$. Transmitted frame: $T = 10011\,000 \oplus 00000\,100 = \mathbf{10011100}$.
+
+\medskip
+\textbf{(b)} Received: $T' = 10011110$ (bit 5 flipped: $0 \to 1$).
+
+Divide $10011110 \div 1011$:
+
+\begin{enumerate}
+  \item $1001 \oplus 1011 = 0010$.
+  \item Bring down 1 $\to 0101$. MSB $= 0$.
+  \item Bring down 1 $\to 1011 \oplus 1011 = 0000$.
+  \item Bring down 1 $\to 0001$. MSB $= 0$.
+  \item Bring down 0 $\to 0010$. MSB $= 0$.
+\end{enumerate}
+
+Remainder $= 010 \neq 000 \Rightarrow$ \textbf{Error detected.} $\checkmark$
+
+\medskip
+\textbf{(c)} Divide original $T = 10011100 \div 1011$:
+
+\begin{enumerate}
+  \item $1001 \oplus 1011 = 0010$.
+  \item Bring down 1 $\to 0101$. MSB $= 0$.
+  \item Bring down 1 $\to 1011 \oplus 1011 = 0000$.
+  \item Bring down 0 $\to 0000$. MSB $= 0$.
+  \item Bring down 0 $\to 0000$. MSB $= 0$.
+\end{enumerate}
+
+Remainder $= 000$. $\checkmark$ No error flagged.
+
+\medskip
+\textbf{(d)} A degree-$r$ CRC guarantees detection of all burst errors of length $\leq r$. Here $r = 3$, so bursts up to \textbf{3 bits} are always detected. For length 4: detection probability $= 1 - 2^{-2} = 75\%$. For longer bursts: $\approx 1 - 2^{-3} = 87.5\%$.
+\bigskip
+
+\bigskip
+
+\subsection*{Problem 3 --- CRC in Practice: Ethernet CRC-32}
+\hrule\medskip
+\begin{enumerate}[label=(\alph*)]
+  \item Ethernet uses CRC-32 (degree 32). How many check bits does it append?
+  \item What is the maximum burst error length CRC-32 guarantees to detect?
+  \item An Ethernet frame has a minimum payload of 46 bytes and maximum of 1500 bytes. Including the 4-byte FCS, 6-byte destination MAC, 6-byte source MAC, and 2-byte Type/Length field, compute the minimum and maximum frame sizes (excluding preamble and SFD).
+  \item If Ethernet detects a CRC error, what happens? How does data get retransmitted?
+  \item A colleague claims: ``CRC-32 guarantees that no errors will ever go undetected.'' Is this correct?
+\end{enumerate}
+\bigskip
+
+\subsection*{Solution 3}
+\hrule\medskip
+\textbf{(a)} CRC-32 appends $r = 32$ check bits $=$ \textbf{4 bytes} (the FCS field).
+
+\medskip
+\textbf{(b)} All burst errors of length $\leq$ \textbf{32 bits}. Also detects all single-bit, double-bit, and odd-number-of-bit errors.
+
+\medskip
+\textbf{(c)}
+\[
+  \text{Frame} = \underbrace{6}_{\text{Dst}} + \underbrace{6}_{\text{Src}} + \underbrace{2}_{\text{Type}} + \text{Payload} + \underbrace{4}_{\text{FCS}}
+\]
+\begin{itemize}
+  \item Minimum: $6 + 6 + 2 + 46 + 4 = \mathbf{64}$ bytes
+  \item Maximum: $6 + 6 + 2 + 1500 + 4 = \mathbf{1518}$ bytes
+\end{itemize}
+
+The 64-byte minimum relates to CSMA/CD: $L_{\min} = 2\tau R$.
+
+\medskip
+\textbf{(d)} Ethernet silently \textbf{drops} the corrupted frame---it provides no retransmission. TCP detects the loss via sequence numbers/timeouts and retransmits. UDP does not retransmit.
+
+\medskip
+\textbf{(e)} \textbf{Incorrect.} CRC-32 guarantees detection of bursts $\leq 32$ bits and all single/double/odd-bit errors, but for longer bursts, undetected errors occur with probability $\approx 2^{-32}$. Any error pattern that is an exact multiple of $G(x)$ goes undetected.
+\bigskip
+
+\end{document}
